@@ -1,5 +1,8 @@
 #include "systemcalls.h"
-
+#include <fcntl.h>
+#include <stdlib.h>
+#include <unistd.h>    // For fork() and execvp()
+#include <sys/wait.h>  // For wait()
 /**
  * @param cmd the command to execute with system()
  * @return true if the command in @param cmd was executed
@@ -16,7 +19,10 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
-
+    if (system(cmd) < 0)
+    {
+        return false;
+    }
     return true;
 }
 
@@ -58,10 +64,50 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+// do_exec(3, "/usr/bin/test","-f","echo")
+    // fork() - (0, in child)
+    int pid = fork();     // fork process to child
+    bool res = false;
+
+    if (pid > 0)
+    {
+        // parent
+        int status;
+        if (wait(&status) == -1)
+        {
+            res = false;
+        }
+        else
+        {
+            // Check if the child terminated normally AND its exit code was 0 (success)
+            if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
+            {
+                res = true;
+            }
+            else
+            {
+                res = false;
+            }
+        }
+    }
+    else if (pid == 0)
+    {
+        //child
+        if (execv(command[0], command) < 0)
+        {
+            res = false;
+            _exit(1);
+        }
+    }
+    else
+    {
+        // error
+        res = false;
+    }
 
     va_end(args);
 
-    return true;
+    return res;
 }
 
 /**
@@ -93,6 +139,38 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *
 */
 
+    int kidpid;
+    int fd = open("redirected.txt", O_WRONLY | O_TRUNC | O_CREAT, 0644);
+    if (fd < 0)
+    {
+        perror("open");
+        abort();
+    }
+    switch (kidpid = fork())
+    {
+    case -1:
+        perror("fork");
+        abort();
+    case 0:
+        if (dup2(fd, 1) < 0)
+        {
+            perror("dup2");
+            abort();
+        }
+        close(fd);
+        //child
+        if (execv(command[0], command) < 0)
+        {
+            _exit(1);
+        }
+        perror("execv");
+        abort();
+    default:
+        close(fd);
+        int status;
+        wait(&status); // Wait for child to finish
+        /* do whatever the parent wants to do. */
+    }
     va_end(args);
 
     return true;
