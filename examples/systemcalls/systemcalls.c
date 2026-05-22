@@ -19,11 +19,7 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
-    if (system(cmd) < 0)
-    {
-        return false;
-    }
-    return true;
+    return system(cmd) != -1;
 }
 
 /**
@@ -64,8 +60,6 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
-// do_exec(3, "/usr/bin/test","-f","echo")
-    // fork() - (0, in child)
     int pid = fork();     // fork process to child
     bool res = false;
 
@@ -135,43 +129,70 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  * TODO
  *   Call execv, but first using https://stackoverflow.com/a/13784315/1446624 as a refernce,
  *   redirect standard out to a file specified by outputfile.
- *   The rest of the behaviour is same as do_exec()
+ *   The rest of the behaviour is same as do_exec()ls
  *
 */
-
+    bool ret = false;
     int kidpid;
-    int fd = open("redirected.txt", O_WRONLY | O_TRUNC | O_CREAT, 0644);
+    // printf(">>>> %s\n", outputfile);
+    int fd = open(outputfile, O_WRONLY | O_TRUNC | O_CREAT, 0644);
     if (fd < 0)
     {
         perror("open");
-        abort();
+        ret = false;
     }
     switch (kidpid = fork())
     {
     case -1:
         perror("fork");
-        abort();
+        ret = false;
     case 0:
+        bool child_ret = true;
         if (dup2(fd, 1) < 0)
         {
             perror("dup2");
-            abort();
+            child_ret = false;
         }
         close(fd);
         //child
-        if (execv(command[0], command) < 0)
-        {
-            _exit(1);
-        }
+        child_ret = execv(command[0], command) != -1;
         perror("execv");
-        abort();
+        _exit(child_ret ? 0 : 1);
     default:
         close(fd);
         int status;
-        wait(&status); // Wait for child to finish
+        if (wait(&status) == -1)
+        {
+            printf("DEBUG: Wait Error");
+            ret = false;
+        }
+        else
+        {
+            if (WIFEXITED(status))
+            {
+                // child finished with _exit or main
+                if(!WEXITSTATUS(status))
+                {
+                    // Status 0 mean success
+                    ret = true;
+                    printf("DEBUG: Child run successful ");
+                }
+                else
+                {
+                    ret = false;
+                    printf("DEBUG: Child run unsuccessful");
+                }
+            }
+            else
+            {
+                // todo: Use WIFSIGNALED
+                printf("DEBUG: WIFEXITED return false");
+                ret = false;
+            }
+        }
         /* do whatever the parent wants to do. */
     }
     va_end(args);
 
-    return true;
+    return ret;
 }
