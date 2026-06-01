@@ -7,8 +7,18 @@ set -u
 
 NUMFILES=10
 WRITESTR=AELD_IS_FUN
-WRITEDIR=/tmp/aeld-data
-username=$(cat conf/username.txt)
+WRITEDIR=/tmp/assignment4-result.txt
+FINDER_APP_DIR=$(realpath $(dirname $0))
+FINDER_CONF_DIR=${FINDER_APP_DIR}/../../etc/finder-app/conf
+
+if [ ! -d "${FINDER_CONF_DIR}" ]
+then
+	echo "${FINDER_CONF_DIR} not found!"
+	FINDER_CONF_DIR=${FINDER_APP_DIR}/conf
+	echo "Change conf directory to ${FINDER_CONF_DIR}"
+
+fi
+username=$(cat ${FINDER_CONF_DIR}/username.txt)
 
 if [ $# -lt 3 ]
 then
@@ -22,7 +32,7 @@ then
 else
 	NUMFILES=$1
 	WRITESTR=$2
-	WRITEDIR=/tmp/aeld-data/$3
+	WRITEDIR=/tmp/assignment4-result.txt
 fi
 
 MATCHSTR="The number of files are ${NUMFILES} and the number of matching lines are ${NUMFILES}"
@@ -32,8 +42,8 @@ echo "Writing ${NUMFILES} files containing string ${WRITESTR} to ${WRITEDIR}"
 rm -rf "${WRITEDIR}"
 
 # create $WRITEDIR if not assignment1
-assignment=`cat ../conf/assignment.txt`
-
+# Assignment4-2: FINDER_APP_DIR path is /usr/bin/
+assignment=`cat ${FINDER_CONF_DIR}/assignment.txt`
 if [ $assignment != 'assignment1' ]
 then
 	mkdir -p "$WRITEDIR"
@@ -54,10 +64,10 @@ fi
 
 for i in $( seq 1 $NUMFILES)
 do
-	./writer.sh "$WRITEDIR/${username}$i.txt" "$WRITESTR"
+	${FINDER_APP_DIR}/writer.sh "$WRITEDIR/${username}$i.txt" "$WRITESTR"
 done
 
-OUTPUTSTRING=$(./finder.sh "$WRITEDIR" "$WRITESTR")
+OUTPUTSTRING=$(${FINDER_APP_DIR}/finder.sh "$WRITEDIR" "$WRITESTR")
 
 # remove temporary directories
 rm -rf /tmp/aeld-data

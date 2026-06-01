@@ -10,6 +10,8 @@ else
   CC = $(CROSS_COMPILE)gcc
 endif
 
+all: writer
+
 writer: writer.o
 	$(CC) writer.c -o writer
 
